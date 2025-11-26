@@ -125,12 +125,12 @@ pipeline {
     /* ---------------- POST BUILD STATUS ---------------- */
     post {
         success {
-            echo "🎉 Deployment Successful!"
+            echo " Deployment Successful!"
             echo "➡ Access App: http://<SERVER-IP>:8081/shopping-app/"
         }
 
         failure {
-            echo "❌ Deployment Failed — Check Jenkins Logs."
+            echo " Deployment Failed — Check Jenkins Logs."
         }
     }
 }
