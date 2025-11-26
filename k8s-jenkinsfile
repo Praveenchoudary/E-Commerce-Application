@@ -1,0 +1,177 @@
+pipeline {
+
+    agent any
+
+    environment {
+        SCANNER_HOME = tool 'sonar-scanner'
+        APP_IMAGE = "praveen22233/ecommerce-app"
+        MYSQL_IMAGE = "praveen22233/ecommerce-mysql"
+    }
+
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+    }
+
+    stages {
+
+        /* ----------------------------------------------------
+                       CLEAN WORKSPACE
+        ------------------------------------------------------*/
+        stage("Clean Workspace") {
+            steps { cleanWs() }
+        }
+
+        /* ----------------------------------------------------
+                       CHECKOUT CODE
+        ------------------------------------------------------*/
+        stage("Checkout Code") {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/Praveenchoudary/E-Commerce-Application.git'
+            }
+        }
+
+        /* ----------------------------------------------------
+                       BUILD WAR
+        ------------------------------------------------------*/
+        stage("Build WAR") {
+            steps {
+                sh """
+                    mvn clean package -DskipTests
+                    cp target/*.war Docker-deployment/app/shopping-app.war
+                """
+            }
+        }
+
+        /* ----------------------------------------------------
+                 SONARQUBE CODE ANALYSIS
+        ------------------------------------------------------*/
+        stage("Code Quality Analysis") {
+            steps {
+                withSonarQubeEnv("sonar-scanner") {
+                    sh """
+                        ${SCANNER_HOME}/bin/sonar-scanner \
+                          -Dsonar.projectKey=ecommerce-app \
+                          -Dsonar.sources=src \
+                          -Dsonar.java.binaries=target/classes
+                    """
+                }
+            }
+        }
+
+        /* ----------------------------------------------------
+                  OWASP DEPENDENCY CHECK
+        ------------------------------------------------------*/
+        stage("OWASP Dependency Check") {
+            steps {
+                dependencyCheck additionalArguments: '--scan . --format XML',
+                                 odcInstallation: 'DP-Check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+
+        /* ----------------------------------------------------
+                  DOCKER IMAGE BUILD
+        ------------------------------------------------------*/
+        stage("Build Docker Images") {
+            steps {
+                sh """
+                    # Build Application Image
+                    cd Docker-deployment/app
+                    docker build -t ${APP_IMAGE}:${BUILD_NUMBER} .
+                    docker tag ${APP_IMAGE}:${BUILD_NUMBER} ${APP_IMAGE}:latest
+
+                    # Build MySQL Image
+                    cd ../mysql
+                    docker build -t ${MYSQL_IMAGE}:${BUILD_NUMBER} .
+                    docker tag ${MYSQL_IMAGE}:${BUILD_NUMBER} ${MYSQL_IMAGE}:latest
+                """
+            }
+        }
+
+        /* ----------------------------------------------------
+                  TRIVY SECURITY SCANS
+        ------------------------------------------------------*/
+        stage("Trivy FS Scan") {
+            steps { sh "trivy fs . > trivy-fs-report.txt" }
+        }
+
+        stage("Trivy Scan App Image") {
+            steps { sh "trivy image ${APP_IMAGE}:${BUILD_NUMBER} > trivy-app-scan.txt" }
+        }
+
+        stage("Trivy Scan MySQL Image") {
+            steps { sh "trivy image ${MYSQL_IMAGE}:${BUILD_NUMBER} > trivy-mysql-scan.txt" }
+        }
+
+        /* ----------------------------------------------------
+                  PUSH IMAGES TO DOCKER HUB
+        ------------------------------------------------------*/
+        stage("Push Docker Images to DockerHub") {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'dockerhub-creds') {
+
+                        sh "docker push ${APP_IMAGE}:${BUILD_NUMBER}"
+                        sh "docker push ${APP_IMAGE}:latest"
+
+                        sh "docker push ${MYSQL_IMAGE}:${BUILD_NUMBER}"
+                        sh "docker push ${MYSQL_IMAGE}:latest"
+                    }
+                }
+            }
+        }
+
+        /* ----------------------------------------------------
+                   UPDATE IMAGE TAG IN K8s YAML
+        ------------------------------------------------------*/
+        stage("Update K8s YAML Tag") {
+            steps {
+                sh """
+                    echo "Updating YAML image tags..."
+
+                    sed -i "s#IMAGE_TAG#${BUILD_NUMBER}#g" k8s-deployment.yaml/app/deployment.yaml
+                    sed -i "s#IMAGE_TAG#${BUILD_NUMBER}#g" k8s-deployment.yaml/mysql/mysql-statefulset.yaml
+                """
+            }
+        }
+
+        /* ----------------------------------------------------
+                     COMMIT YAML CHANGES TO GITHUB
+        ------------------------------------------------------*/
+        stage("Commit YAML Changes") {
+            steps {
+                withCredentials([string(credentialsId: 'github-token', variable: 'GH_TOKEN')]) {
+
+                    sh """
+                        git config --global user.email "jenkins@server.com"
+                        git config --global user.name "Jenkins"
+
+                        git remote set-url origin https://${GH_TOKEN}@github.com/Praveenchoudary/E-Commerce-Application.git
+
+                        git add k8s-deployment.yaml/app/deployment.yaml
+                        git add k8s-deployment.yaml/mysql/mysql-statefulset.yaml
+
+                        git commit -m "Update image tag to build number ${BUILD_NUMBER}" || true
+                        git push origin main
+                    """
+                }
+            }
+        }
+
+    }
+
+    /* ----------------------------------------------------
+                     BUILD STATUS
+    ------------------------------------------------------*/
+    post {
+        success {
+            echo "🎉 Build Success!"
+            echo "🚀 ArgoCD will auto-sync and deploy the new version."
+        }
+        failure {
+            echo "❌ Build Failed — Check Jenkins logs."
+        }
+    }
+}
