@@ -167,11 +167,11 @@ pipeline {
     ------------------------------------------------------*/
     post {
         success {
-            echo "🎉 Build Success!"
-            echo "🚀 ArgoCD will auto-sync and deploy the new version."
+            echo " Build Success!"
+            echo " ArgoCD will auto-sync and deploy the new version."
         }
         failure {
-            echo "❌ Build Failed — Check Jenkins logs."
+            echo " Build Failed — Check Jenkins logs."
         }
     }
 }
