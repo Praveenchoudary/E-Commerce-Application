@@ -3,7 +3,7 @@ version: "3.9"
 services:
 
   mysql-db:
-    build: ./mysql
+    image: praveen22233/ecommerce-mysql:IMAGE_TAG
     container_name: mysql-db
     restart: always
     environment:
@@ -17,7 +17,7 @@ services:
       - ecommerce-network
 
   ecommerce-app:
-    build: ./app
+    image: praveen22233/ecommerce-app:IMAGE_TAG
     container_name: ecommerce-app
     depends_on:
       - mysql-db
@@ -36,3 +36,4 @@ networks:
 
 volumes:
   mysql_data:
+
