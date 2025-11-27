@@ -131,8 +131,8 @@ pipeline {
                 sh """
                     echo "Updating YAML image tags..."
 
-                    sed -i "s#IMAGE_TAG#${BUILD_NUMBER}#g" k8s-deployment.yaml/app/deployment.yaml
-                    sed -i "s#IMAGE_TAG#${BUILD_NUMBER}#g" k8s-deployment.yaml/mysql/mysql-statefulset.yaml
+                    sed -i "s#IMAGE_TAG#${BUILD_NUMBER}#g" k8s-deployment/deployment.yaml
+                    sed -i "s#IMAGE_TAG#${BUILD_NUMBER}#g" k8s-deployment/mysql-statefulset.yaml
                 """
             }
         }
@@ -150,8 +150,8 @@ pipeline {
 
                         git remote set-url origin https://${GH_TOKEN}@github.com/Praveenchoudary/E-Commerce-Application.git
 
-                        git add k8s-deployment.yaml/app/deployment.yaml
-                        git add k8s-deployment.yaml/mysql/mysql-statefulset.yaml
+                        git add k8s-deployment/deployment.yaml
+                        git add k8s-deployment/mysql-statefulset.yaml
 
                         git commit -m "Update image tag to build number ${BUILD_NUMBER}" || true
                         git push origin main
@@ -167,11 +167,11 @@ pipeline {
     ------------------------------------------------------*/
     post {
         success {
-            echo " Build Success!"
-            echo " ArgoCD will auto-sync and deploy the new version."
+            echo "🎉 Build Success!"
+            echo "🚀 ArgoCD will auto-sync and deploy the new version."
         }
         failure {
-            echo " Build Failed — Check Jenkins logs."
+            echo "❌ Build Failed — Check Jenkins logs."
         }
     }
 }
