@@ -3,7 +3,7 @@
 <%@ page
 	import="com.shashi.service.impl.*, com.shashi.service.*,com.shashi.beans.*,java.util.*,javax.servlet.ServletOutputStream,java.io.*"%>
 <!DOCTYPE html>
-<html>
+<html> 
 <head>
 <title>Praveen Electronics</title>
 <meta charset="utf-8">
