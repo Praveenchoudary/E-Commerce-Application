@@ -3,7 +3,7 @@
 <!DOCTYPE html>
 <html> 
 <head>
-<title>Register</title>
+<title>Register</title> 
 <link rel="stylesheet"   
 	href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
 <link rel="stylesheet" href="css/changes.css">
